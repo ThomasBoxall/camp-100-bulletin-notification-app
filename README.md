@@ -1,2 +1,3 @@
-# camp-100-bulletin-notification-app
-Camp 100 BulletinNotificationApp
+# Camp 100 BulletinNotificationApp
+
+Part of the Camp 100 Digital Bulletin System.
