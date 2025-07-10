@@ -41,6 +41,8 @@ APPL_ENV = ""
 # Initialise global variables
 numberOfEntriesInBulletin = 0
 
+ERROR_MSG_PREPARE_ENTRIES = f'## ⏰ **CONTENT DEADLINE**: No valid entries found in Google Sheet. Ensure entries are valid by :45 to be included in Bulletin.'
+
 # INITIALISE LOGGING
 
 # SETUP LOGGING LOCAL BUFFER
@@ -217,7 +219,7 @@ def main():
         if not spreadsheetContents or len(spreadsheetContents) == 1:
             # if spreadsheet is completely entry or there is just the header row: something's gone wrong...
             logging.info("no data in spreadsheet")
-            postToDiscord('general', f'🚨 **ERROR** No data found in Google Sheet. Bulletin not published.')
+            postToDiscord('general', ERROR_MSG_PREPARE_ENTRIES)
         else:
             print('Data from Google Sheet:')
             for row in spreadsheetContents:
@@ -225,18 +227,19 @@ def main():
             logging.info(f'Successfully read {len(spreadsheetContents)} rows from Google Sheet')
 
             bulletinStateOfNation = generateBulletinStateOfNation(spreadsheetContents)
+            bulletinStateOfNationText = bulletinStateOfNation[0]
+            numberUnapEntries = bulletinStateOfNation[1]
 
             if numberOfEntriesInBulletin == 0:
                 # no valid entires in the bulletin, so don't publish (ie nothing with flag set)
-                postToDiscord('general', f'## ⏰ **CONTENT DEADLINE**: No valid entries found in Google Sheet. Ensure entries are valid by :45 to be included in Bulletin.')
+                postToDiscord('general', ERROR_MSG_PREPARE_ENTRIES)
             else:
                 # valid bulletin as num entries >= 1
-                postToDiscord('general', f'## ⏰ **CONTENT DEADLINE**: 30 Minutes Until Bulletin Published, currently {numberOfEntriesInBulletin} approved posts and xxx unapproved posts. \n {bulletinStateOfNation}')
+                postToDiscord('general', f'## ⏰ **CONTENT DEADLINE**: 30 Minutes Until Bulletin Published, currently {numberOfEntriesInBulletin} approved posts and {numberUnapEntries} unapproved posts. \n{bulletinStateOfNationText}')
 
     except Exception as e:
         logging.critical(f"error parsing spreadsheet response: {e}")
-        postToDiscord('general' f'🚨 **Critical Error**: Failed to parse Google Sheet. Bulletin Not Published')
-        postToDiscord('admin' f'failed to parse google sheet: {e}')
+        postToDiscord('admin' f'BulletinNotificationApp: failed to parse google sheet: {e}')
 
 
 def fetchGoogleSheetsContents(ga_creds: service_account.Credentials) -> list:
@@ -257,36 +260,43 @@ def fetchGoogleSheetsContents(ga_creds: service_account.Credentials) -> list:
 def generateBulletinStateOfNation(responseContent):
     global numberOfEntriesInBulletin
 
-    validEntries = 0
     # delete the header from the spreadsheet
     del responseContent[0]
 
     # sort the responses by their includeFlag so there is some control over which order they are included in
     responseContent = sorted(responseContent, key=lambda x: x[0])
 
-    catOneEntries = "**Category 1 Entries:** \n"
-    catTwoEntries = "**Category 2 Entries:** \n"
-    catThreeEntries = "**Category 3 Entries:** \n"
-    unapprovedEntries = "**Unapproved Entries:** \n"
+    catOneEntries = ""
+    catOneEntriesCount = 0
+    catTwoEntries = ""
+    catTwoEntriesCount = 0
+    catThreeEntries = ""
+    catThreeEntriesCount = 0
+    unapprovedEntries = ""
+    unapprovedEntriesCount = 0
 
     for oneRecord in responseContent:
         try:
             if oneRecord[0] == '1':
-                catOneEntries += f"* {oneRecord[6]} \n"
-                validEntries += 1
+                catOneEntries += f"-> {oneRecord[6]} \n"
+                catOneEntriesCount += 1
             elif oneRecord[0] == '2':
-                catTwoEntries += f"* {oneRecord[6]} \n"
-                validEntries += 1
+                catTwoEntries += f"-> {oneRecord[6]} \n"
+                catTwoEntriesCount += 1
             elif oneRecord[0] == '3':
-                catThreeEntries += f"* {oneRecord[6]} \n"
-                validEntries += 1
+                catThreeEntries += f"-> {oneRecord[6]} \n"
+                catThreeEntriesCount += 1
             elif oneRecord[0] == '':
-                unapprovedEntries += f"* {oneRecord[6]} \n"
+                unapprovedEntries += f"-> {oneRecord[6]} \n"
+                unapprovedEntriesCount +=1 
         except Exception as e:
             logging.error(f"bad bulletin entry. content {oneRecord}. error: {e}")
     
-    numberOfEntriesInBulletin = validEntries
-    return catOneEntries + "\n" + catTwoEntries + "\n" + catThreeEntries + "\n" + unapprovedEntries
+    numberOfEntriesInBulletin = catOneEntriesCount + catTwoEntriesCount + catThreeEntriesCount + unapprovedEntriesCount
+    
+    returnString = f'**Category 1 Entries ({catOneEntriesCount}):** \n{catOneEntries} \n **Category 2 Entries ({catTwoEntriesCount}):** \n{catTwoEntries} \n**Category 3 Entries ({catThreeEntriesCount}):** \n{catThreeEntries} \n**Unapproved Entries ({unapprovedEntriesCount}):** \n{unapprovedEntries}\n'
+
+    return [returnString, unapprovedEntriesCount]
 
 
 def postToDiscord(mode: str, content: str):
