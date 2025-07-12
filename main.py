@@ -235,7 +235,7 @@ def main():
                 postToDiscord('general', ERROR_MSG_PREPARE_ENTRIES)
             else:
                 # valid bulletin as num entries >= 1
-                postToDiscord('general', f'## ⏰ **CONTENT DEADLINE**: 30 Minutes Until Bulletin Published, currently {numberOfEntriesInBulletin} approved posts and {numberUnapEntries} unapproved posts. \n{bulletinStateOfNationText}')
+                postToDiscord('general', f'## ⏰ **CONTENT DEADLINE**: 20 Minutes Until Bulletin Published, currently {numberOfEntriesInBulletin} approved posts and {numberUnapEntries} unapproved posts. \n{bulletinStateOfNationText}')
 
     except Exception as e:
         logging.critical(f"error parsing spreadsheet response: {e}")
